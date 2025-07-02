@@ -1,0 +1,222 @@
+
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+    provider = "prisma-client-js"
+    binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+    output = "/home/ubuntu/gestao_alugueis/app/node_modules/.prisma/client"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  password      String
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Apartamento {
+  id          String    @id @default(cuid())
+  nome        String
+  descricao   String?
+  endereco    String?
+  capacidade  Int
+  ativo       Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  reservas    Reserva[]
+  tarefas     Tarefa[]
+  mapeamentos MapeamentoApartamento[]
+}
+
+model Hospede {
+  id          String    @id @default(cuid())
+  nome        String
+  email       String    @unique
+  telefone    String?
+  documento   String?
+  observacoes String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  reservas    Reserva[]
+}
+
+model Reserva {
+  id            String         @id @default(cuid())
+  apartamentoId String
+  hospedeId     String
+  dataInicio    DateTime
+  dataFim       DateTime
+  preco         Decimal        @db.Decimal(10,2)
+  status        StatusReserva  @default(CONFIRMADA)
+  observacoes   String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  
+  apartamento     Apartamento          @relation(fields: [apartamentoId], references: [id])
+  hospede         Hospede              @relation(fields: [hospedeId], references: [id])
+  despesas        Despesa[]
+  sincronizacao   ReservaSincronizada?
+}
+
+model Despesa {
+  id          String      @id @default(cuid())
+  descricao   String
+  valor       Decimal     @db.Decimal(10,2)
+  data        DateTime
+  categoria   Categoria
+  reservaId   String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  reserva     Reserva?    @relation(fields: [reservaId], references: [id])
+}
+
+model Tarefa {
+  id            String        @id @default(cuid())
+  titulo        String
+  descricao     String?
+  apartamentoId String
+  data          DateTime
+  status        StatusTarefa  @default(PENDENTE)
+  tipo          TipoTarefa
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  
+  apartamento   Apartamento   @relation(fields: [apartamentoId], references: [id])
+}
+
+enum StatusReserva {
+  CONFIRMADA
+  CHECK_IN
+  CHECK_OUT
+  CANCELADA
+}
+
+enum StatusTarefa {
+  PENDENTE
+  EM_ANDAMENTO
+  CONCLUIDA
+}
+
+enum TipoTarefa {
+  LIMPEZA
+  MANUTENCAO
+  VISTORIA
+  OUTROS
+}
+
+enum Categoria {
+  LIMPEZA
+  MANUTENCAO
+  UTILIDADES
+  TAXAS
+  OUTROS
+}
+
+model Integracao {
+  id              String                @id @default(cuid())
+  plataforma      PlataformaIntegracao
+  nomeConexao     String
+  status          StatusIntegracao      @default(DESCONECTADA)
+  configuracao    Json                  @default("{}")
+  ultimaSync      DateTime?
+  ativa           Boolean               @default(false)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  
+  mapeamentos     MapeamentoApartamento[]
+  reservasSync    ReservaSincronizada[]
+}
+
+model MapeamentoApartamento {
+  id                String      @id @default(cuid())
+  integracaoId      String
+  apartamentoId     String
+  idExterno         String
+  nomeExterno       String
+  ativo             Boolean     @default(true)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  
+  integracao        Integracao  @relation(fields: [integracaoId], references: [id])
+  apartamento       Apartamento @relation(fields: [apartamentoId], references: [id])
+  
+  @@unique([integracaoId, apartamentoId])
+  @@unique([integracaoId, idExterno])
+}
+
+model ReservaSincronizada {
+  id              String      @id @default(cuid())
+  reservaId       String      @unique
+  integracaoId    String
+  idExterno       String
+  dadosOriginais  Json        @default("{}")
+  sincronizadaEm  DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  reserva         Reserva     @relation(fields: [reservaId], references: [id])
+  integracao      Integracao  @relation(fields: [integracaoId], references: [id])
+  
+  @@unique([integracaoId, idExterno])
+}
+
+enum PlataformaIntegracao {
+  AIRBNB
+  BOOKING_COM
+}
+
+enum StatusIntegracao {
+  DESCONECTADA
+  CONECTADA
+  ERRO
+  SINCRONIZANDO
+}
