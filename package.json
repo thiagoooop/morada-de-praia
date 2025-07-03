@@ -2,8 +2,8 @@
   "name": "app",
   "private": true,
   "scripts": {
-  "build": "npm install --legacy-peer-deps && next build",
-  "dev": "next dev", 
+  "build": "npm install --force && next build",
+  "dev": "next dev",
   "start": "next start"
 }
   },
