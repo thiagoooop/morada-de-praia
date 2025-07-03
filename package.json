@@ -2,10 +2,10 @@
   "name": "app",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+  "build": "npm install --legacy-peer-deps && next build",
+  "dev": "next dev", 
+  "start": "next start"
+}
   },
   "prisma": {
     "seed": "tsx --require dotenv/config scripts/seed.ts"
